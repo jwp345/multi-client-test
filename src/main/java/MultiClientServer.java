@@ -3,18 +3,23 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class MultiClientServer {
+
+    private ServerSocket serverSocket;
+
     public MultiClientServer() {
         try {
-            ServerSocket serverSocket = new ServerSocket(10000);
-            while (true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("클라이언트 연결 완료");
-                Thread clientThread = new Thread(new ClientHandler(clientSocket));
-                clientThread.start();
-            }
+            this.serverSocket = new ServerSocket(1234);
+            Socket clientSocket = serverSocket.accept();
+            Thread clientThread = new Thread(new ClientHandler(clientSocket));
+            clientThread.start();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void stop() throws IOException {
+        serverSocket.close();
     }
 
     class ClientHandler implements Runnable {
@@ -33,8 +38,8 @@ public class MultiClientServer {
             try {
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
-                    System.out.println("Server received: " + inputLine);
-                    out.println(inputLine.toUpperCase());
+//                    System.out.println("Server received: " + inputLine);
+                    out.println("Server received: " + inputLine);
 //                    out.flush();
                 }
                 clientSocket.close();
@@ -44,5 +49,4 @@ public class MultiClientServer {
             }
         }
     }
-}
 }
