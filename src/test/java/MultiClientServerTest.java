@@ -14,6 +14,7 @@ public class MultiClientServerTest {
     public void testMultiClientServer() throws Exception {
         // Start server
         MultiClientServer server = new MultiClientServer();
+        server.start();
 
         // Connect clients
         Socket[] clients = new Socket[10];

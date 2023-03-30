@@ -1,25 +1,45 @@
 import java.io.*;
+import java.lang.management.ManagementFactory;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class MultiClientServer {
+public class MultiClientServer implements Runnable {
 
     private ServerSocket serverSocket;
+    private boolean running;
 
     public MultiClientServer() {
         try {
             this.serverSocket = new ServerSocket(1234);
-            Socket clientSocket = serverSocket.accept();
-            Thread clientThread = new Thread(new ClientHandler(clientSocket));
-            clientThread.start();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    public void start() {
+        running = true;
+        new Thread(this).start();
+    }
+
     public void stop() throws IOException {
+        running = false;
         serverSocket.close();
+    }
+
+    @Override
+    public void run() {
+        while (running) {
+            try {
+                Socket clientSocket = serverSocket.accept();
+                Thread clientThread = new Thread(new ClientHandler(clientSocket));
+                clientThread.start();
+                System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
+            } catch (IOException e) {
+                if (running) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     class ClientHandler implements Runnable {
