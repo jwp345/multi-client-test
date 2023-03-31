@@ -1,12 +1,17 @@
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
-
 
 
 public class MultiClientServerTest {
@@ -42,4 +47,41 @@ public class MultiClientServerTest {
         }
         server.stop();
     }
+
+    @Test
+    void testMultipleClients() throws InterruptedException {
+        int numClients = 10;
+        CountDownLatch latch = new CountDownLatch(numClients);
+        NIOMultiClientServer server = new NIOMultiClientServer();
+        Thread serverThread = new Thread(server);
+        serverThread.start();
+
+        for (int i = 0; i < numClients; i++) {
+
+            Thread clientThread = new Thread(() -> {
+                try {
+                    SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("localhost", 1234));
+
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    buffer.put("hello server".getBytes());
+                    buffer.flip();
+                    socketChannel.write(buffer);
+                    buffer.clear();
+                    socketChannel.read(buffer);
+                    buffer.flip();
+                    String response = new String(buffer.array()).trim();
+                    assertEquals("Server received: hello server", response);
+                    socketChannel.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            });
+            clientThread.start();
+        }
+        // wait for all clients to finish
+        latch.await();
+    }
+
 }

@@ -23,7 +23,7 @@ class NIOMultiClientServerTest {
     @BeforeEach
     public void setup() throws IOException {
         server = new NIOMultiClientServer();
-        server.start();
+//        server.start();
 
         selector = Selector.open();
 

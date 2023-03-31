@@ -10,7 +10,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
 
-public class NIOMultiClientServer {
+public class NIOMultiClientServer implements Runnable{
 
     private Selector selector;
     private ByteBuffer buffer = ByteBuffer.allocate(1024);
@@ -22,51 +22,56 @@ public class NIOMultiClientServer {
         selector.close();
     }
 
-    public void start() throws IOException {
-        selector = Selector.open();
+    @Override
+    public void run() {
 
-        serverChannel = ServerSocketChannel.open();
-        serverChannel.bind(new InetSocketAddress("localhost", 1234));
-        serverChannel.configureBlocking(false);
-        serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+        try {
+            selector = Selector.open();
 
-        System.out.println("Server started");
+            serverChannel = ServerSocketChannel.open();
+            serverChannel.bind(new InetSocketAddress("localhost", 1234));
+            serverChannel.configureBlocking(false);
+            serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-        while (true) {
-            int readyChannels = selector.select();
-            if(readyChannels == 0) continue;
+            System.out.println("Server started");
+            while (true) {
+                int readyChannels = selector.select();
+                System.out.println("event num : " + readyChannels);
+                if(readyChannels == 0) continue;
 
-            Set<SelectionKey> selectedKeys = selector.selectedKeys();
-            Iterator<SelectionKey> iter = selectedKeys.iterator();
+                Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                Iterator<SelectionKey> iter = selectedKeys.iterator();
 
-            while (iter.hasNext()) {
-                SelectionKey key = iter.next();
+                while (iter.hasNext()) {
+                    SelectionKey key = iter.next();
 
-                if (key.isAcceptable()) {
-                    SocketChannel client = serverChannel.accept();
-                    client.configureBlocking(false);
-                    client.register(selector, SelectionKey.OP_READ);
-                    numClients++;
-                    System.out.println("Client " + numClients + " connected.");
-                } else if (key.isReadable()) {
-                    SocketChannel client = (SocketChannel) key.channel();
-                    buffer.clear();
-                    int readBytes = client.read(buffer);
-                    if (readBytes == -1) {
-                        System.out.println("Client " + numClients + " disconnected.");
-                        client.close();
-                    } else {
-                        buffer.flip();
-                        byte[] bytes = new byte[buffer.remaining()];
-                        buffer.get(bytes);
-                        String message = new String(bytes);
-                        System.out.println("Client " + numClients + " sent: " + message);
+                    if (key.isAcceptable()) {
+                        SocketChannel client = serverChannel.accept();
+                        client.configureBlocking(false);
+                        client.register(selector, SelectionKey.OP_READ);
+                        numClients++;
+                        System.out.println("Client " + numClients + " connected.");
+                    } else if (key.isReadable()) {
+                        SocketChannel client = (SocketChannel) key.channel();
+                        buffer.clear();
+                        int readBytes = client.read(buffer);
+                        if (readBytes == -1) {
+                            System.out.println("Client " + numClients + " disconnected.");
+                            client.close();
+                        } else {
+                            buffer.flip();
+                            byte[] bytes = new byte[buffer.remaining()];
+                            buffer.get(bytes);
+                            String message = new String(bytes);
+                            System.out.println("Client " + numClients + " sent: " + message);
+                        }
                     }
+                    iter.remove();
                 }
-                iter.remove();
+                System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
             }
-            System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
-
 }
