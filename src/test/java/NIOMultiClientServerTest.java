@@ -10,11 +10,14 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NIOMultiClientServerTest {
+
+    /*
     private NIOMultiClientServer server;
     private Selector selector;
     private SocketChannel clientChannel1, clientChannel2, clientChannel3, clientChannel4, clientChannel5,
@@ -126,5 +129,41 @@ class NIOMultiClientServerTest {
 
             keyIterator.remove();
         }
+    }*/
+
+    @Test
+    void testMultipleClients() throws InterruptedException {
+        int numClients = 10;
+        CountDownLatch latch = new CountDownLatch(numClients);
+        NIOMultiClientServer server = new NIOMultiClientServer();
+        new Thread(server).start();
+
+        for (int i = 0; i < numClients; i++) {
+
+            Thread clientThread = new Thread(() -> {
+                try {
+                    SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("localhost", 1234));
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    buffer.put("hello server".getBytes());
+                    buffer.flip(); // 읽기 -> 쓰기로 변경하거나 그반대
+                    socketChannel.write(buffer);
+                    buffer.clear();
+                    socketChannel.read(buffer);
+                    buffer.flip();
+                    String response = new String(buffer.array()).trim();
+                    assertEquals("Server received: hello server", response);
+                    socketChannel.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            });
+            clientThread.start();
+        }
+        Thread.sleep(1000);
+
+        // wait for all clients to finish
+        latch.await();
     }
 }

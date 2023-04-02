@@ -17,11 +17,6 @@ public class NIOMultiClientServer implements Runnable{
     private ServerSocketChannel serverChannel;
     private int numClients = 0;
 
-    public void stop() throws IOException {
-        serverChannel.close();
-        selector.close();
-    }
-
     @Override
     public void run() {
 
@@ -36,7 +31,7 @@ public class NIOMultiClientServer implements Runnable{
             System.out.println("Server started");
             while (true) {
                 int readyChannels = selector.select();
-                System.out.println("event num : " + readyChannels);
+                System.out.println("event amount : " + readyChannels);
                 if(readyChannels == 0) continue;
 
                 Set<SelectionKey> selectedKeys = selector.selectedKeys();
@@ -50,7 +45,21 @@ public class NIOMultiClientServer implements Runnable{
                         client.configureBlocking(false);
                         client.register(selector, SelectionKey.OP_READ);
                         numClients++;
-                        System.out.println("Client " + numClients + " connected.");
+                        int readBytes = client.read(buffer);
+                        if (readBytes == -1) {
+                            System.out.println("Client " + numClients + " connected.");
+                        } else {
+                            buffer.flip();
+                            byte[] bytes = new byte[buffer.remaining()];
+                            buffer.get(bytes);
+                            String message = new String(bytes);
+                            buffer.clear();
+                            buffer.put(("Server received: " + message).getBytes());
+                            buffer.flip();
+                            client.write(buffer);
+                            buffer.clear();
+                        }
+                        client.close();
                     } else if (key.isReadable()) {
                         SocketChannel client = (SocketChannel) key.channel();
                         buffer.clear();
