@@ -14,7 +14,6 @@ public class NIOMultiClientServer implements Runnable{
     private Selector selector;
     private ByteBuffer buffer = ByteBuffer.allocate(1024); // byteBuffer 크기를 꼭 맞춰줘야 할것 같다 나머지는?
     private ServerSocketChannel serverChannel;
-    private int numClients = 0;
 
     @Override
     public void run() {
@@ -26,6 +25,7 @@ public class NIOMultiClientServer implements Runnable{
             serverChannel.bind(new InetSocketAddress("localhost", 1234));
             serverChannel.configureBlocking(false);
             serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+            System.out.println("Server start");
 
             while (true) {
                 int readyChannels = selector.select();
@@ -40,32 +40,24 @@ public class NIOMultiClientServer implements Runnable{
 
                     if(key.isAcceptable()) {
                         SocketChannel client = serverChannel.accept();
-                        System.out.println("Server start");
                         client.configureBlocking(false);
-                        client.register(selector, SelectionKey.OP_READ);
-                    }
-                    if (key.isReadable()) { // selectionKey가 read 일 경우
-                        SocketChannel client = (SocketChannel) key.channel();
-                        int readBytes = client.read(buffer);
-                        if (readBytes == -1) {
-                            System.out.println("Client " + numClients + " disconnected.");
-                            client.close();
-                        } else {
+
+
+                        while (client.read(buffer) > -1) {
                             buffer.flip();
                             byte[] bytes = new byte[buffer.remaining()];
                             buffer.get(bytes);
                             String message = new String(bytes);
                             buffer.clear();
                             buffer.put(bytes);
-                            client.register(selector, SelectionKey.OP_WRITE);
-                            System.out.println("Client " + numClients + " sent: " + message);
+                            System.out.println("Client sent: " + message);
+                            buffer.flip();
+                            client.write(buffer);
+                            buffer.clear();
                         }
-                    } if(key.isWritable()) {
-                        SocketChannel client = (SocketChannel) key.channel();
-                        client.write(buffer);
-                        buffer.clear();
+                        client.close();
+                        System.out.println("Client disconnected.");
                     }
-                    iter.remove();
                     System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
                 }
             }

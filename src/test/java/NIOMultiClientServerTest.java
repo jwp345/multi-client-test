@@ -1,5 +1,6 @@
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -16,123 +17,86 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NIOMultiClientServerTest {
-    private Selector selector;
-    private SocketChannel clientChannel1, clientChannel2, clientChannel3, clientChannel4, clientChannel5,
-            clientChannel6, clientChannel7, clientChannel8, clientChannel9, clientChannel10;
+
+    private int numClients;
 
     @BeforeEach
-    public void setup() throws IOException {
+    public void setUp() {
+        this.numClients = 10;
         NIOMultiClientServer server = new NIOMultiClientServer();
         new Thread(server).start();
-
-        selector = Selector.open();
-
-        clientChannel1 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel1.configureBlocking(false);
-        clientChannel1.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel2 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel2.configureBlocking(false);
-        clientChannel2.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel3 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel3.configureBlocking(false);
-        clientChannel3.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel4 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel4.configureBlocking(false);
-        clientChannel4.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel5 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel5.configureBlocking(false);
-        clientChannel5.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel6 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel6.configureBlocking(false);
-        clientChannel6.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel7 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel7.configureBlocking(false);
-        clientChannel7.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel8 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel8.configureBlocking(false);
-        clientChannel8.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel9 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel9.configureBlocking(false);
-        clientChannel9.register(selector, SelectionKey.OP_WRITE);
-
-        clientChannel10 = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-        clientChannel10.configureBlocking(false);
-        clientChannel10.register(selector, SelectionKey.OP_WRITE);
-    }
-
-    @AfterEach
-    public void cleanup() throws IOException {
-        clientChannel1.close();
-        clientChannel2.close();
-        clientChannel3.close();
-        clientChannel4.close();
-        clientChannel5.close();
-        clientChannel6.close();
-        clientChannel7.close();
-        clientChannel8.close();
-        clientChannel9.close();
-        clientChannel10.close();
     }
 
     @Test
-    public void testMultiClientServer() throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
+    @DisplayName("클라이언트에서도 selector와 nio소켓을 이용해 통신")
+    public void testSelectorClients() {
+        for(int i = 0; i < numClients; i++) {
+            int clientId = i;
+            new Thread(() -> {
+                try {
+                    SocketChannel channel = SocketChannel.open();
+                    channel.configureBlocking(false);
+                    channel.connect(new InetSocketAddress("localhost", 1234));
 
-        clientChannel1.write(ByteBuffer.wrap("Client 1 message".getBytes()));
-        clientChannel2.write(ByteBuffer.wrap("Client 2 message".getBytes()));
-        clientChannel3.write(ByteBuffer.wrap("Client 3 message".getBytes()));
-        clientChannel4.write(ByteBuffer.wrap("Client 4 message".getBytes()));
-        clientChannel5.write(ByteBuffer.wrap("Client 5 message".getBytes()));
-        clientChannel6.write(ByteBuffer.wrap("Client 6 message".getBytes()));
-        clientChannel7.write(ByteBuffer.wrap("Client 7 message".getBytes()));
-        clientChannel8.write(ByteBuffer.wrap("Client 8 message".getBytes()));
-        clientChannel9.write(ByteBuffer.wrap("Client 9 message".getBytes()));
-        clientChannel10.write(ByteBuffer.wrap("Client 10 message".getBytes()));
+                    Selector selector = Selector.open();
+                    channel.register(selector, SelectionKey.OP_CONNECT);
 
-        int readyChannels = selector.select();
-        assertTrue(readyChannels > 0);
+                    while (true) {
+                        int readyChannels = selector.select();
+                        if (readyChannels == 0) {
+                            continue;
+                        }
 
-        Set<SelectionKey> selectedKeys = selector.selectedKeys();
-        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+                        Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
-        while (keyIterator.hasNext()) {
-            SelectionKey key = keyIterator.next();
-            SocketChannel clientChannel = (SocketChannel) key.channel();
+                        while (keyIterator.hasNext()) {
+                            SelectionKey key = keyIterator.next();
 
-            if (key.isWritable()) {
-//                buffer.clear();
-                buffer.put("message".getBytes());
-                buffer.flip();
-                clientChannel.write(buffer);
-                clientChannel.register(selector, SelectionKey.OP_READ);
-            } else if (key.isReadable()) {
-//                buffer.clear();
-                int numBytes = clientChannel.read(buffer);
-                String receivedMessage = new String(buffer.array(), 0, numBytes);
-                assertEquals("Server received: message", receivedMessage.trim()); // CRLF 붙어나오므로 제거
-                clientChannel.close();
-            }
-            buffer.clear();
+                            if (key.isConnectable()) {
+                                SocketChannel client = (SocketChannel) key.channel();
+                                if (client.isConnectionPending()) {
+                                    client.finishConnect();
+                                    System.out.println("Client " + clientId + " connected.");
+                                    ByteBuffer buffer = ByteBuffer.wrap(("Hello from client " + clientId).getBytes());
+                                    client.register(selector, SelectionKey.OP_WRITE, buffer);
+                                }
+                            } else if (key.isWritable()) {
+                                SocketChannel client = (SocketChannel) key.channel();
+                                ByteBuffer buffer = (ByteBuffer) key.attachment();
+                                buffer.rewind();
+                                client.write(buffer);
+                                client.register(selector, SelectionKey.OP_READ);
+                            } else if (key.isReadable()) {
+                                SocketChannel client = (SocketChannel) key.channel();
+                                ByteBuffer buffer = ByteBuffer.allocate(1024);
 
-            keyIterator.remove();
+                                while (client.read(buffer) > -1) {
+                                    buffer.flip();
+                                    byte[] bytes = new byte[buffer.remaining()];
+                                    buffer.get(bytes);
+                                    String message = new String(bytes);
+                                    System.out.println("Client " + clientId + " received: " + message);
+                                    client.register(selector, SelectionKey.OP_WRITE, ByteBuffer.wrap(("Hello from client " + clientId).getBytes()));
+                                }
+                                client.close();
+                            }
+                            keyIterator.remove();
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
-    }
-/*
-    @Test
-    void testMultipleClients() throws InterruptedException {
-        int numClients = 10;
-        CountDownLatch latch = new CountDownLatch(numClients);
-        NIOMultiClientServer server = new NIOMultiClientServer();
-        new Thread(server).start();
 
+    }
+
+    /*
+    @Test
+    @DisplayName("socketChannel까지만 이용한 테스트")
+    void testMultipleClients() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(numClients);
         for (int i = 0; i < numClients; i++) {
 
             Thread clientThread = new Thread(() -> {
