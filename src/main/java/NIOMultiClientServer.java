@@ -12,7 +12,7 @@ import java.util.Set;
 public class NIOMultiClientServer implements Runnable{
 
     private Selector selector;
-    private ByteBuffer buffer = ByteBuffer.allocate(1024);
+    private ByteBuffer buffer = ByteBuffer.allocate(1024); // byteBuffer 크기를 꼭 맞춰줘야 할것 같다 나머지는?
     private ServerSocketChannel serverChannel;
     private int numClients = 0;
 
@@ -27,7 +27,6 @@ public class NIOMultiClientServer implements Runnable{
             serverChannel.configureBlocking(false);
             serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-            System.out.println("Server started");
             while (true) {
                 int readyChannels = selector.select();
                 System.out.println("event amount : " + readyChannels);
@@ -39,30 +38,14 @@ public class NIOMultiClientServer implements Runnable{
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
 
-                    if (key.isAcceptable()) {
+                    if(key.isAcceptable()) {
                         SocketChannel client = serverChannel.accept();
+                        System.out.println("Server start");
                         client.configureBlocking(false);
                         client.register(selector, SelectionKey.OP_READ);
-                        numClients++;
-                        int readBytes = client.read(buffer);
-                        if (readBytes == -1) {
-                            System.out.println("Client " + numClients + " connected.");
-                        } else {
-                            buffer.flip();
-                            byte[] bytes = new byte[buffer.remaining()];
-                            buffer.get(bytes);
-                            String message = new String(bytes);
-                            buffer.clear();
-                            buffer.put(("Server received: " + message).getBytes());
-                            buffer.flip();
-                            client.write(buffer);
-                            buffer.clear();
-                        }
-                        client.close();
                     }
-                    /*else if (key.isReadable()) { // 여긴 현재 사용하지 않는다.
+                    if (key.isReadable()) { // selectionKey가 read 일 경우
                         SocketChannel client = (SocketChannel) key.channel();
-                        buffer.clear();
                         int readBytes = client.read(buffer);
                         if (readBytes == -1) {
                             System.out.println("Client " + numClients + " disconnected.");
@@ -72,9 +55,16 @@ public class NIOMultiClientServer implements Runnable{
                             byte[] bytes = new byte[buffer.remaining()];
                             buffer.get(bytes);
                             String message = new String(bytes);
+                            buffer.clear();
+                            buffer.put(bytes);
+                            client.register(selector, SelectionKey.OP_WRITE);
                             System.out.println("Client " + numClients + " sent: " + message);
                         }
-                    }*/
+                    } if(key.isWritable()) {
+                        SocketChannel client = (SocketChannel) key.channel();
+                        client.write(buffer);
+                        buffer.clear();
+                    }
                     iter.remove();
                     System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
                 }

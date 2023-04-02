@@ -16,17 +16,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NIOMultiClientServerTest {
-
-    /*
-    private NIOMultiClientServer server;
     private Selector selector;
     private SocketChannel clientChannel1, clientChannel2, clientChannel3, clientChannel4, clientChannel5,
             clientChannel6, clientChannel7, clientChannel8, clientChannel9, clientChannel10;
 
     @BeforeEach
     public void setup() throws IOException {
-        server = new NIOMultiClientServer();
-//        server.start();
+        NIOMultiClientServer server = new NIOMultiClientServer();
+        new Thread(server).start();
 
         selector = Selector.open();
 
@@ -83,8 +80,6 @@ class NIOMultiClientServerTest {
         clientChannel8.close();
         clientChannel9.close();
         clientChannel10.close();
-
-        server.stop();
     }
 
     @Test
@@ -110,27 +105,27 @@ class NIOMultiClientServerTest {
 
         while (keyIterator.hasNext()) {
             SelectionKey key = keyIterator.next();
+            SocketChannel clientChannel = (SocketChannel) key.channel();
 
             if (key.isWritable()) {
-                SocketChannel clientChannel = (SocketChannel) key.channel();
-                buffer.clear();
-                buffer.put("Server message".getBytes());
+//                buffer.clear();
+                buffer.put("message".getBytes());
                 buffer.flip();
                 clientChannel.write(buffer);
                 clientChannel.register(selector, SelectionKey.OP_READ);
             } else if (key.isReadable()) {
-                SocketChannel clientChannel = (SocketChannel) key.channel();
-                buffer.clear();
+//                buffer.clear();
                 int numBytes = clientChannel.read(buffer);
                 String receivedMessage = new String(buffer.array(), 0, numBytes);
-                assertEquals("Server message", receivedMessage.trim());
+                assertEquals("Server received: message", receivedMessage.trim()); // CRLF 붙어나오므로 제거
                 clientChannel.close();
             }
+            buffer.clear();
 
             keyIterator.remove();
         }
-    }*/
-
+    }
+/*
     @Test
     void testMultipleClients() throws InterruptedException {
         int numClients = 10;
@@ -166,4 +161,7 @@ class NIOMultiClientServerTest {
         // wait for all clients to finish
         latch.await();
     }
+
+
+ */
 }
