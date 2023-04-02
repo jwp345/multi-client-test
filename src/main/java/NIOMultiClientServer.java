@@ -1,7 +1,6 @@
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -60,7 +59,8 @@ public class NIOMultiClientServer implements Runnable{
                             buffer.clear();
                         }
                         client.close();
-                    } else if (key.isReadable()) {
+                    }
+                    /*else if (key.isReadable()) { // 여긴 현재 사용하지 않는다.
                         SocketChannel client = (SocketChannel) key.channel();
                         buffer.clear();
                         int readBytes = client.read(buffer);
@@ -74,10 +74,10 @@ public class NIOMultiClientServer implements Runnable{
                             String message = new String(bytes);
                             System.out.println("Client " + numClients + " sent: " + message);
                         }
-                    }
+                    }*/
                     iter.remove();
+                    System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
                 }
-                System.out.println("thread count: " + ManagementFactory.getThreadMXBean().getThreadCount());
             }
         } catch (IOException e) {
             e.printStackTrace();
