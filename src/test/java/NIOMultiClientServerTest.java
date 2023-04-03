@@ -28,7 +28,7 @@ class NIOMultiClientServerTest {
     }
 
     @Test
-    public void testNIOClient() throws IOException {
+    public void testNIOClient() throws IOException, InterruptedException {
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
@@ -43,7 +43,7 @@ class NIOMultiClientServerTest {
             socketChannel.write(buffer);
         }
         buffer.clear();
-
+        Thread.sleep(1000);
         int bytesRead = socketChannel.read(buffer);
         String response = new String(buffer.array(), 0, bytesRead);
         System.out.println("Response : " + response);

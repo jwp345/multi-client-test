@@ -13,19 +13,11 @@ public class NIOMultiClientServer implements Runnable {
     private Selector selector;
 
     public void start() throws IOException {
-        // Selector 객체 생성
+
         this.selector = Selector.open();
-
-        // ServerSocketChannel 객체 생성
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-
-        // ServerSocketChannel을 Non-blocking 모드로 설정
         serverSocketChannel.configureBlocking(false);
-
-        // ServerSocketChannel을 localhost의 port에 바인딩
         serverSocketChannel.bind(new InetSocketAddress("localhost", 1234));
-
-        // ServerSocketChannel을 Selector에 등록하고 Acceptable 이벤트에 대해 등록
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         System.out.println("Server started");
 
@@ -83,6 +75,7 @@ public class NIOMultiClientServer implements Runnable {
         if (readBytes == -1) {
             key.cancel();
             socketChannel.close();
+            System.out.println("Client disconnected");
             return;
         }
 
@@ -106,7 +99,6 @@ public class NIOMultiClientServer implements Runnable {
         // SelectionKey에서 SocketChannel과 ByteBuffer 객체를 가져옴
         SocketChannel socketChannel = (SocketChannel) key.channel();
         ByteBuffer writeBuffer = (ByteBuffer) key.attachment();
-
         // ByteBuffer에 있는 데이터를 SocketChannel에 기록함
         socketChannel.write(writeBuffer);
         System.out.println("write message : " + new String(writeBuffer.array(), 0, 1024).trim());
