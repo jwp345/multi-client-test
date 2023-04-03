@@ -21,75 +21,34 @@ class NIOMultiClientServerTest {
     private int numClients;
 
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws IOException {
         this.numClients = 10;
         NIOMultiClientServer server = new NIOMultiClientServer();
         new Thread(server).start();
     }
 
     @Test
-    @DisplayName("클라이언트에서도 selector와 nio소켓을 이용해 통신")
-    public void testSelectorClients() {
-        for(int i = 0; i < numClients; i++) {
-            int clientId = i;
-            new Thread(() -> {
-                try {
-                    SocketChannel channel = SocketChannel.open();
-                    channel.configureBlocking(false);
-                    channel.connect(new InetSocketAddress("localhost", 1234));
-
-                    Selector selector = Selector.open();
-                    channel.register(selector, SelectionKey.OP_CONNECT);
-
-                    while (true) {
-                        int readyChannels = selector.select();
-                        if (readyChannels == 0) {
-                            continue;
-                        }
-
-                        Set<SelectionKey> selectedKeys = selector.selectedKeys();
-                        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-
-                        while (keyIterator.hasNext()) {
-                            SelectionKey key = keyIterator.next();
-
-                            if (key.isConnectable()) {
-                                SocketChannel client = (SocketChannel) key.channel();
-                                if (client.isConnectionPending()) {
-                                    client.finishConnect();
-                                    System.out.println("Client " + clientId + " connected.");
-                                    ByteBuffer buffer = ByteBuffer.wrap(("Hello from client " + clientId).getBytes());
-                                    client.register(selector, SelectionKey.OP_WRITE, buffer);
-                                }
-                            } else if (key.isWritable()) {
-                                SocketChannel client = (SocketChannel) key.channel();
-                                ByteBuffer buffer = (ByteBuffer) key.attachment();
-                                buffer.rewind();
-                                client.write(buffer);
-                                client.register(selector, SelectionKey.OP_READ);
-                            } else if (key.isReadable()) {
-                                SocketChannel client = (SocketChannel) key.channel();
-                                ByteBuffer buffer = ByteBuffer.allocate(1024);
-
-                                while (client.read(buffer) > -1) {
-                                    buffer.flip();
-                                    byte[] bytes = new byte[buffer.remaining()];
-                                    buffer.get(bytes);
-                                    String message = new String(bytes);
-                                    System.out.println("Client " + clientId + " received: " + message);
-                                    client.register(selector, SelectionKey.OP_WRITE, ByteBuffer.wrap(("Hello from client " + clientId).getBytes()));
-                                }
-                                client.close();
-                            }
-                            keyIterator.remove();
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
+    public void testNIOClient() throws IOException {
+        SocketChannel socketChannel = SocketChannel.open();
+        socketChannel.configureBlocking(false);
+        socketChannel.connect(new InetSocketAddress("localhost", 1234));
+        while (!socketChannel.finishConnect()) {
+            // 연결이 완료되기를 기다립니다.
         }
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        String message = "Hello, NIO Server!";
+        buffer.put(message.getBytes());
+        buffer.flip();
+        while (buffer.hasRemaining()) {
+            socketChannel.write(buffer);
+        }
+        buffer.clear();
 
+        int bytesRead = socketChannel.read(buffer);
+        String response = new String(buffer.array(), 0, bytesRead);
+        System.out.println("Response : " + response);
+        assertEquals("Hello, NIO Client!", response.trim());
+        socketChannel.close();
     }
 
     /*
