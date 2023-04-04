@@ -28,7 +28,7 @@ class NIOMultiClientServerTest {
     }
 
     @Test
-    public void testNIOClient() throws IOException, InterruptedException {
+    public void testNIOClient() throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
 //        socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));

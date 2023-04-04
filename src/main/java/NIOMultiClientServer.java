@@ -6,6 +6,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 public class NIOMultiClientServer implements Runnable {
@@ -48,6 +49,10 @@ public class NIOMultiClientServer implements Runnable {
                 keyIterator.remove();
             }
             System.out.println("Active threads : " + Thread.activeCount());
+            Map<Thread, StackTraceElement[]> stackTraceMap = Thread.getAllStackTraces();
+            for (Thread t : stackTraceMap.keySet()) {
+                System.out.println("Thread name: " + t.getName());
+            }
         }
     }
 
