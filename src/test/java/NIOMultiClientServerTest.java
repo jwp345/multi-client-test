@@ -30,20 +30,16 @@ class NIOMultiClientServerTest {
     @Test
     public void testNIOClient() throws IOException, InterruptedException {
         SocketChannel socketChannel = SocketChannel.open();
-        socketChannel.configureBlocking(false);
+//        socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
-        while (!socketChannel.finishConnect()) {
-            // 연결이 완료되기를 기다립니다.
-        }
+
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         String message = "Hello, NIO Server!";
         buffer.put(message.getBytes());
         buffer.flip();
-        while (buffer.hasRemaining()) {
-            socketChannel.write(buffer);
-        }
+        socketChannel.write(buffer);
+
         buffer.clear();
-        Thread.sleep(1000);
         int bytesRead = socketChannel.read(buffer);
         String response = new String(buffer.array(), 0, bytesRead);
         System.out.println("Response : " + response);

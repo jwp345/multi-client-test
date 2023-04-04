@@ -47,6 +47,7 @@ public class NIOMultiClientServer implements Runnable {
 
                 keyIterator.remove();
             }
+            System.out.println("Active threads : " + Thread.activeCount());
         }
     }
 
