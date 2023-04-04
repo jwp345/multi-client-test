@@ -14,13 +14,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class NIOMultiClientServer implements Runnable {
 
     private Selector selector;
-    private Queue<SelectionKey> cancelledKeys = new ConcurrentLinkedQueue<>();
-
-    public void stop() {
-        while(!cancelledKeys.isEmpty()) {
-            cancelledKeys.poll().cancel();
-        }
-    }
 
     public void start() throws IOException {
 
@@ -93,7 +86,6 @@ public class NIOMultiClientServer implements Runnable {
         if (readBytes == -1) {
 //            key.cancel();
 //            socketChannel.close();
-            cancelledKeys.add(key);
             System.out.println("Client disconnected");
             return;
         }
