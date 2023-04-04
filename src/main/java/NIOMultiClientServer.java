@@ -7,11 +7,20 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class NIOMultiClientServer implements Runnable {
 
     private Selector selector;
+    private Queue<SelectionKey> cancelledKeys = new ConcurrentLinkedQueue<>();
+
+    public void stop() {
+        while(!cancelledKeys.isEmpty()) {
+            cancelledKeys.poll().cancel();
+        }
+    }
 
     public void start() throws IOException {
 
@@ -49,10 +58,13 @@ public class NIOMultiClientServer implements Runnable {
                 keyIterator.remove();
             }
             System.out.println("Active threads : " + Thread.activeCount());
+            /*
             Map<Thread, StackTraceElement[]> stackTraceMap = Thread.getAllStackTraces();
             for (Thread t : stackTraceMap.keySet()) {
                 System.out.println("Thread name: " + t.getName());
             }
+
+             */
         }
     }
 
@@ -79,8 +91,9 @@ public class NIOMultiClientServer implements Runnable {
 
         // 클라이언트가 연결을 끊은 경우
         if (readBytes == -1) {
-            key.cancel();
-            socketChannel.close();
+//            key.cancel();
+//            socketChannel.close();
+            cancelledKeys.add(key);
             System.out.println("Client disconnected");
             return;
         }
@@ -109,6 +122,7 @@ public class NIOMultiClientServer implements Runnable {
         socketChannel.write(writeBuffer);
         System.out.println("write message : " + new String(writeBuffer.array(), 0, 1024).trim());
         // ByteBuffer의 데이터를 모두 기록한 경우
+
         if (!writeBuffer.hasRemaining()) {
             key.interestOps(SelectionKey.OP_READ); // 다음 읽기 이벤트를 수신하기 위해 읽기 모드로 변경
             System.out.println("Response sent to client: " + socketChannel.getRemoteAddress());

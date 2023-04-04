@@ -9,8 +9,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,16 +22,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NIOMultiClientServerTest {
 
     private int numClients;
-
+    private NIOMultiClientServer server;
     @BeforeEach
-    public void setUp() throws IOException {
+    public void setUp() {
         this.numClients = 10;
-        NIOMultiClientServer server = new NIOMultiClientServer();
+        this.server = new NIOMultiClientServer();
         new Thread(server).start();
     }
 
     @Test
-    public void testNIOClient() throws IOException {
+    public void testNIOClient() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        while(numClients-- > 0) {
+            futures.add(CompletableFuture.runAsync(() -> {
+                try {
+                    startClient();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        server.stop();
+    }
+
+    private void startClient() throws IOException{
         SocketChannel socketChannel = SocketChannel.open();
 //        socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
