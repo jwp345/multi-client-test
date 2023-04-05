@@ -19,12 +19,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NIOMultiClientServerTest {
 
     private int numClients;
-    Process server;
 
     @BeforeEach
     public void setUp() {
         this.numClients = 10;
-//        server = startServer();
     }
 
     private Process startServer() throws IOException {
@@ -34,14 +32,17 @@ class NIOMultiClientServerTest {
         String className = NIOMultiClientServer.class.getCanonicalName();
 
         ProcessBuilder builder = new ProcessBuilder(javaBin, "-cp", classpath, className);
-        builder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        builder.redirectInput(ProcessBuilder.Redirect.INHERIT);
+//        builder.redirectOutput(ProcessBuilder.Redirect.INHERIT); // 기본 값 PIPE
         return builder.start();
     }
 
     @Test
-    public void testSocketChannelClient() {
+    public void testSocketChannelClient() throws IOException, InterruptedException {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        Process server = startServer();
+//        server.waitFor();
+        copy(server.getInputStream(), System.out);
+
         while(numClients-- > 0) {
             futures.add(CompletableFuture.runAsync(() -> {
                 try {
@@ -51,16 +52,17 @@ class NIOMultiClientServerTest {
                 }
             }));
         }
+
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-//        server.destroy();
-        /*usedSockets.stream().forEach(channel -> {
-            try {
-                channel.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }); // 비동기 코드 연습
-        */
+        server.destroy();
+    }
+
+    private void copy(InputStream input, OutputStream output) throws IOException {
+        byte[] buffer = new byte[1024];
+        int n = 0;
+        while ((n = input.read(buffer)) != -1) {
+            output.write(buffer, 0, n);
+        }
     }
 
     private void startClient() throws IOException {
@@ -90,38 +92,4 @@ class NIOMultiClientServerTest {
 //
 //    }
 
-    /*
-    @Test
-    @DisplayName("socketChannel까지만 이용한 테스트")
-    void testMultipleClients() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(numClients);
-        for (int i = 0; i < numClients; i++) {
-
-            Thread clientThread = new Thread(() -> {
-                try {
-                    SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("localhost", 1234));
-                    ByteBuffer buffer = ByteBuffer.allocate(1024);
-                    buffer.put("hello server".getBytes());
-                    buffer.flip(); // 읽기 -> 쓰기로 변경하거나 그반대
-                    socketChannel.write(buffer);
-                    buffer.clear();
-                    socketChannel.read(buffer);
-                    buffer.flip();
-                    String response = new String(buffer.array()).trim();
-                    assertEquals("Server received: hello server", response);
-                    socketChannel.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    latch.countDown();
-                }
-            });
-            clientThread.start();
-        }
-        Thread.sleep(1000);
-
-        // wait for all clients to finish
-        latch.await();
-    }
- */
 }
