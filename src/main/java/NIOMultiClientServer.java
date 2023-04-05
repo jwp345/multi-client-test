@@ -87,6 +87,7 @@ public class NIOMultiClientServer implements Runnable {
 //            key.cancel();
 //            socketChannel.close();
             System.out.println("Client disconnected");
+//            socketChannel.shutdownInput();
             return;
         }
 
@@ -112,12 +113,13 @@ public class NIOMultiClientServer implements Runnable {
         ByteBuffer writeBuffer = (ByteBuffer) key.attachment();
         // ByteBuffer에 있는 데이터를 SocketChannel에 기록함
         socketChannel.write(writeBuffer);
-        System.out.println("write message : " + new String(writeBuffer.array(), 0, 1024).trim());
+//        System.out.println("write message : " + new String(writeBuffer.array(), 0, 1024).trim());
         // ByteBuffer의 데이터를 모두 기록한 경우
 
         if (!writeBuffer.hasRemaining()) {
-            key.interestOps(SelectionKey.OP_READ); // 다음 읽기 이벤트를 수신하기 위해 읽기 모드로 변경
-            System.out.println("Response sent to client: " + socketChannel.getRemoteAddress());
+//            key.interestOps(SelectionKey.OP_READ); // 다음 읽기 이벤트를 수신하기 위해 읽기 모드로 변경
+            socketChannel.register(selector, SelectionKey.OP_READ);
+//            System.out.println("Response sent to client: " + socketChannel.getRemoteAddress());
         }
     }
 

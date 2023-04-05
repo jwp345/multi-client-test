@@ -23,9 +23,13 @@ class NIOMultiClientServerTest {
 
     private int numClients;
     private NIOMultiClientServer server;
+
+    private List<SocketChannel> usedSockets;
+
     @BeforeEach
     public void setUp() {
         this.numClients = 10;
+        this.usedSockets = new ArrayList<>();
         this.server = new NIOMultiClientServer();
         new Thread(server).start();
     }
@@ -43,10 +47,18 @@ class NIOMultiClientServerTest {
             }));
         }
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        usedSockets.stream().forEach(channel -> {
+            try {
+                channel.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private void startClient() throws IOException{
         SocketChannel socketChannel = SocketChannel.open();
+        usedSockets.add(socketChannel);
 //        socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
 
@@ -61,7 +73,7 @@ class NIOMultiClientServerTest {
         String response = new String(buffer.array(), 0, bytesRead);
         System.out.println("Response : " + response);
         assertEquals("Hello, NIO Client!", response.trim());
-        socketChannel.shutdownInput();
+//        socketChannel.shutdownInput();
 //        socketChannel.shutdownOutput();
     }
 
