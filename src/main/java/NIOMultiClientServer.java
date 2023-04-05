@@ -82,7 +82,7 @@ public class NIOMultiClientServer implements Runnable {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         int readBytes = socketChannel.read(buffer);
 
-        // 클라이언트가 연결을 끊은 경우
+        // 클라이언트가 연결을 끊은 경우 or 스트림에서 더이상 읽을 값이 없을 경우(end of stream)
         if (readBytes == -1) {
             key.interestOps(0); // 관심 키 제거
             System.out.println("Client disconnected");
