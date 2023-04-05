@@ -3,16 +3,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
@@ -22,20 +19,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NIOMultiClientServerTest {
 
     private int numClients;
-    private NIOMultiClientServer server;
-
-    private List<SocketChannel> usedSockets;
+    Process server;
 
     @BeforeEach
     public void setUp() {
         this.numClients = 10;
-        this.usedSockets = new ArrayList<>();
-        this.server = new NIOMultiClientServer();
-        new Thread(server).start();
+//        server = startServer();
+    }
+
+    private Process startServer() throws IOException {
+        String javaHome = System.getProperty("java.home");
+        String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
+        String classpath = System.getProperty("java.class.path");
+        String className = NIOMultiClientServer.class.getCanonicalName();
+
+        ProcessBuilder builder = new ProcessBuilder(javaBin, "-cp", classpath, className);
+        builder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        builder.redirectInput(ProcessBuilder.Redirect.INHERIT);
+        return builder.start();
     }
 
     @Test
-    public void testNIOClient() {
+    public void testSocketChannelClient() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         while(numClients-- > 0) {
             futures.add(CompletableFuture.runAsync(() -> {
@@ -47,6 +52,7 @@ class NIOMultiClientServerTest {
             }));
         }
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+//        server.destroy();
         /*usedSockets.stream().forEach(channel -> {
             try {
                 channel.close();
@@ -57,9 +63,8 @@ class NIOMultiClientServerTest {
         */
     }
 
-    private void startClient() throws IOException{
+    private void startClient() throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
-        usedSockets.add(socketChannel);
 //        socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
 
@@ -78,6 +83,12 @@ class NIOMultiClientServerTest {
 //        socketChannel.shutdownInput();
 //        socketChannel.shutdownOutput();
     }
+
+//    @AfterEach
+//    void cleanUp() {
+//        server.destroy();
+//
+//    }
 
     /*
     @Test
@@ -112,7 +123,5 @@ class NIOMultiClientServerTest {
         // wait for all clients to finish
         latch.await();
     }
-
-
  */
 }

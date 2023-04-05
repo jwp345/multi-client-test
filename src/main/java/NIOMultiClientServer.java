@@ -1,4 +1,4 @@
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -6,18 +6,12 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class NIOMultiClientServer implements Runnable {
+public class NIOMultiClientServer {
 
-    private Selector selector;
-
-    public void start() throws IOException {
-
-        this.selector = Selector.open();
+    public static void main(String[] args) throws IOException {
+        Selector selector = Selector.open();
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
         serverSocketChannel.bind(new InetSocketAddress("localhost", 1234));
@@ -37,15 +31,15 @@ public class NIOMultiClientServer implements Runnable {
                 SelectionKey key = keyIterator.next();
 
                 if (key.isAcceptable()) {
-                    acceptConnection(key);
+                    acceptConnection(key, selector);
                 }
 
                 if (key.isReadable()) {
-                    readMessage(key);
+                    readMessage(key, selector);
                 }
 
                 if (key.isWritable()) {
-                    writeMessage(key);
+                    writeMessage(key, selector);
                 }
 
                 keyIterator.remove();
@@ -61,7 +55,7 @@ public class NIOMultiClientServer implements Runnable {
         }
     }
 
-    private void acceptConnection(SelectionKey key) throws IOException {
+    private static void acceptConnection(SelectionKey key, Selector selector) throws IOException {
         // ServerSocketChannel에서 SocketChannel을 생성하여 연결을 수락함
         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
         SocketChannel socketChannel = serverSocketChannel.accept();
@@ -74,7 +68,7 @@ public class NIOMultiClientServer implements Runnable {
         System.out.println("Accepted new connection from client: " + socketChannel.getRemoteAddress());
     }
 
-    private void readMessage(SelectionKey key) throws IOException {
+    private static void readMessage(SelectionKey key, Selector selector) throws IOException {
         // SelectionKey에서 SocketChannel 객체를 가져옴
         SocketChannel socketChannel = (SocketChannel) key.channel();
 
@@ -105,7 +99,7 @@ public class NIOMultiClientServer implements Runnable {
         System.out.println("Registered Write event for client: " + socketChannel.getRemoteAddress());
     }
 
-    private void writeMessage(SelectionKey key) throws IOException {
+    private static void writeMessage(SelectionKey key, Selector selector) throws IOException {
         // SelectionKey에서 SocketChannel과 ByteBuffer 객체를 가져옴
         SocketChannel socketChannel = (SocketChannel) key.channel();
         ByteBuffer writeBuffer = (ByteBuffer) key.attachment();
@@ -121,12 +115,4 @@ public class NIOMultiClientServer implements Runnable {
         }
     }
 
-    @Override
-    public void run() {
-        try {
-            this.start();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }
