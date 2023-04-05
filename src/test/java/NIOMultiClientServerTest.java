@@ -53,7 +53,7 @@ class NIOMultiClientServerTest {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        });
+        }); // 비동기 코드 연습
         */
     }
 

@@ -84,10 +84,8 @@ public class NIOMultiClientServer implements Runnable {
 
         // 클라이언트가 연결을 끊은 경우
         if (readBytes == -1) {
-//            key.cancel();
-//            socketChannel.close();
+            key.interestOps(0); // 관심 키 제거
             System.out.println("Client disconnected");
-//            socketChannel.shutdownInput();
             return;
         }
 
