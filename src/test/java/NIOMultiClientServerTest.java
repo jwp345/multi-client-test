@@ -12,17 +12,18 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NIOMultiClientServerTest {
 
-    private int numClients;
+    private AtomicInteger numClients;
 
     @BeforeEach
     public void setUp() {
-        this.numClients = 10;
+        this.numClients = new AtomicInteger(9);
     }
 
     private Process startServer() throws IOException {
@@ -43,10 +44,10 @@ class NIOMultiClientServerTest {
 //        server.waitFor();
         copy(server.getInputStream(), System.out);
 
-        while(numClients-- > 0) {
+        for(int i = 0; i < 10; i++) {
             futures.add(CompletableFuture.runAsync(() -> {
                 try {
-                    startClient();
+                    startClient(numClients.getAndDecrement());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -65,13 +66,13 @@ class NIOMultiClientServerTest {
         }
     }
 
-    private void startClient() throws IOException {
+    private void startClient(int num) throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
 //        socketChannel.configureBlocking(false);
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
 
         ByteBuffer buffer = ByteBuffer.allocate(1024);
-        String message = "Hello, NIO Server!";
+        String message = "Hello, NIO Server!" + num;
         buffer.put(message.getBytes());
         buffer.flip();
         socketChannel.write(buffer);
@@ -80,7 +81,7 @@ class NIOMultiClientServerTest {
         int bytesRead = socketChannel.read(buffer);
         String response = new String(buffer.array(), 0, bytesRead);
         System.out.println("Response : " + response);
-        assertEquals("Hello, NIO Client!", response.trim());
+        assertEquals("Hello, NIO Client!" + num, response.trim());
         socketChannel.close();
 //        socketChannel.shutdownInput();
 //        socketChannel.shutdownOutput();

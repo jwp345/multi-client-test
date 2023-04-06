@@ -91,7 +91,7 @@ public class NIOMultiClientServer {
 
         // 변환된 데이터를 ByteBuffer 객체로 변환하여 SocketChannel에 기록함
         ByteBuffer writeBuffer = ByteBuffer.allocate(1024);
-        writeBuffer.put("Hello, NIO Client!".getBytes());
+        writeBuffer.put(("Hello, NIO Client!" + message.charAt(message.length() - 1)).getBytes());
         writeBuffer.flip();
 
         socketChannel.register(selector, SelectionKey.OP_WRITE, writeBuffer); // ByteBuffer로 기록해야 이벤트 발생?
