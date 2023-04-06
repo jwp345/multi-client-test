@@ -65,7 +65,7 @@ class NIOMultiClientServerTest {
 
     private void startClient(int num) throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
-//        socketChannel.configureBlocking(false);
+//        socketChannel.configureBlocking(false); // 응답을 받아오려면 논블로킹으로 보낼 수 없다. 응답이 오기까지 블로킹 되야한다.
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
 
         ByteBuffer buffer = ByteBuffer.allocate(1024);
