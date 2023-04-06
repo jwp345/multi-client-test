@@ -49,7 +49,7 @@ class NIOMultiClientServerTest {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }).completeOnTimeout(null, 1, TimeUnit.SECONDS)); // 명시적으로 끈힉 위해 1초 타임아웃 걸음.
+            })); // 명시적으로 끈힉 위해 1초 타임아웃 걸음.
         }
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -145,7 +145,11 @@ class NIOMultiClientServerTest {
             buffer.flip();
             byte[] bytes = new byte[bytesRead];
             buffer.get(bytes);
-            System.out.println(new String(bytes));
+            String message = new String(bytes);
+            System.out.println(message);
+            if(message.equals("Client disconnected")) {
+                key.interestOps(0);
+            }
             buffer.clear();
         }
     }
