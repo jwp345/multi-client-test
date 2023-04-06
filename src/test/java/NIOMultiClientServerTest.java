@@ -8,6 +8,7 @@ import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,7 +49,7 @@ class NIOMultiClientServerTest {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }));
+            }).completeOnTimeout(null, 1, TimeUnit.SECONDS)); // 명시적으로 끈힉 위해 1초 타임아웃 걸음.
         }
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
