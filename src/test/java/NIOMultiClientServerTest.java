@@ -70,7 +70,7 @@ class NIOMultiClientServerTest {
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
         ByteBuffer buffer = ByteBuffer.allocate(1024);
 
-        loop : while(true) {
+        while(true) {
             selector.select();
 
             Set<SelectionKey> selectionKeys = selector.selectedKeys();
@@ -90,8 +90,6 @@ class NIOMultiClientServerTest {
                 }
                 keyIterator.remove();
             }
-
-
         }
     }
 
