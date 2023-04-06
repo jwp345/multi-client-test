@@ -50,8 +50,10 @@ class NIOMultiClientServerTest {
         }
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        server.destroy();
+        Thread.sleep(1000); // 마찬가지로 연결 종료시까지 시간이 필요함.
 //        server.waitFor();
+        server.destroy();
+
         copy(server.getInputStream(), System.out);
     }
 
