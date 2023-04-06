@@ -78,6 +78,7 @@ public class NIOMultiClientServer {
         if (readBytes == -1) {
             key.interestOps(0); // 관심 키 제거
             System.out.println("Client disconnected");
+            socketChannel.shutdownOutput();
             return;
         }
 

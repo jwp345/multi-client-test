@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,7 +70,7 @@ class NIOMultiClientServerTest {
         socketChannel.connect(new InetSocketAddress("localhost", 1234));
         ByteBuffer buffer = ByteBuffer.allocate(1024);
 
-        while(true) {
+        loop : while(true) {
             selector.select();
 
             Set<SelectionKey> selectionKeys = selector.selectedKeys();
@@ -78,19 +79,20 @@ class NIOMultiClientServerTest {
             while (keyIterator.hasNext()) {
                 SelectionKey key = keyIterator.next();
                 if(key.isConnectable()) {
+                    key.interestOps(0); // 연결은 첫번째만 필요하므로 이후 관심 키 제거
                     connectSocket(socketChannel, selector, num);
                 }
                 if(key.isReadable()) {
                     readByChannel(key, num, buffer);
                 }
                 if(key.isWritable()) {
-                    writeByChannel(key, inputStream, buffer, selector);
+                    writeByChannel(key, inputStream, buffer);
                 }
                 keyIterator.remove();
             }
+
+
         }
-//        sourceChannel.close();
-//        sinkChannel.close();
     }
 
     private void connectSocket(SocketChannel socketChannel, Selector selector, int num) throws IOException {
@@ -102,14 +104,12 @@ class NIOMultiClientServerTest {
         socketChannel.register(selector, SelectionKey.OP_WRITE, writeBuffer);
     }
 
-    private void writeByChannel(SelectionKey key, InputStream inputStream, ByteBuffer buffer, Selector selector) throws IOException {
+    private void writeByChannel(SelectionKey key, InputStream inputStream, ByteBuffer buffer) throws IOException {
         if(key.channel() instanceof SocketChannel) {
             SocketChannel socketChannel = (SocketChannel) key.channel();
             ByteBuffer writeBuffer = (ByteBuffer) key.attachment();
             socketChannel.write(writeBuffer);
-//            key.interestOps(0);
-//            socketChannel.register(selector, SelectionKey.OP_READ); // 결과는 같다.
-            key.interestOps(SelectionKey.OP_READ);
+            key.interestOps(SelectionKey.OP_READ); // 한번만 쓰고 읽기로 전환
         }
         if(key.channel() instanceof Pipe.SinkChannel) {
             Pipe.SinkChannel sinkChannel = (Pipe.SinkChannel) key.channel();
