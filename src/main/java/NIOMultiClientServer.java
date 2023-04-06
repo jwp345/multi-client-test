@@ -33,11 +33,9 @@ public class NIOMultiClientServer {
                 if (key.isAcceptable()) {
                     acceptConnection(key, selector);
                 }
-
                 if (key.isReadable()) {
                     readMessage(key, selector);
                 }
-
                 if (key.isWritable()) {
                     writeMessage(key, selector);
                 }
