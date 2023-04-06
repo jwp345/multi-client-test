@@ -6,16 +6,12 @@ import org.junit.jupiter.api.Test;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NIOMultiClientServerTest {
 
@@ -38,11 +34,10 @@ class NIOMultiClientServerTest {
     }
 
     @Test
-    public void testSocketChannelClient() throws IOException {
+    public void testSocketChannelClient() throws IOException, InterruptedException {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         Process server = startServer();
-//        server.waitFor();
-        copy(server.getInputStream(), System.out);
+        Thread.sleep(1000); // 서버가 실행될 때까지 약간의 텀이 필요함. 없으면 서버가 켜지기 전에 connection 시도로 connection refused exception 발생.
 
         for(int i = 0; i < 10; i++) {
             futures.add(CompletableFuture.runAsync(() -> {
@@ -56,6 +51,8 @@ class NIOMultiClientServerTest {
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         server.destroy();
+//        server.waitFor();
+        copy(server.getInputStream(), System.out);
     }
 
     private void copy(InputStream input, OutputStream output) throws IOException {
