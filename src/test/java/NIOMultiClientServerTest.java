@@ -38,7 +38,7 @@ class NIOMultiClientServerTest {
     }
 
     @Test
-    public void testSocketChannelClient() throws IOException, InterruptedException {
+    public void testSocketChannelClient() throws IOException {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         Process server = startServer();
 //        server.waitFor();
@@ -47,7 +47,7 @@ class NIOMultiClientServerTest {
         for(int i = 0; i < 10; i++) {
             futures.add(CompletableFuture.runAsync(() -> {
                 try {
-                    startClient(numClients.getAndDecrement());
+                    startClient(numClients.getAndDecrement()); // 왜 DecrementAndGet()메소드는 일괄적인 값을 리턴할까..?
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
