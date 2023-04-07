@@ -35,5 +35,18 @@
 #### 왜 decremnetAndGet()에선 의도대로 동작하지 않았는데 getAndDecrement()에선 의도대로 동작하는가?
 
 
+#### 클라이언트쪽에서 소켓 채널을 닫았는데 닫힌 채널에 write 이벤트가 발생하여 CancelledKeyException
+> Writable과 Readable이 가능한 소켓 채널이 있는 것으로 추정, else if로 read 이벤트 타면 다시 못타게 막아놨더니 해결됨. 
+> 근데 왜 write 이벤트가 소켓채널로 들어오는진 모르겠음. 
 
-참고 자료: https://www.baeldung.com/java-nio-selector, https://homoefficio.github.io/2016/08/06/Java-NIO%EB%8A%94-%EC%83%9D%EA%B0%81%EB%A7%8C%ED%81%BC-non-blocking-%ED%95%98%EC%A7%80-%EC%95%8A%EB%8B%A4/
+#### Client Disconnected를 출력하면 연결 종료를 하려했는데 왜 블로킹이 걸리는가..?
+> 이유를 모르겠음. contains메소드로 포함된 거 체크하고 닫을라해도 무용지물.. 병목지점이 생기는 건가 이유를 모르겠다..
+> 왜 블락되어 하나의 소켓채널은 established인 채로 종료 패킷 조차 보내지 않는가? 시간이 지나니 다 종료되고 established 된 연결 하나만 남는다.
+> 찾아보니 2*MSL 시간만큼 대기한다고 한다. (120초 정도 소요 후 종료되는 듯하다.)
+
+> 해결 시도 : 혹시나 하나의 연결만 established가 된 게 신경 쓰여 Half-close 상태에 빠진 게 문제가 되나 싶어서 서버쪽에서도
+> 소켓 채널을 닫으려고 시도함. 그러나 이번엔 하나의 소켓을 닫을 때 TIME_WAIT이 걸려 행업 상태에 빠짐. (이건 taskKill로도 종료도 안된다. 화가 난다.. 무작정 기다리거나 재부팅 해야됨.)
+> 드디어 알아낸 게 계속 sinkChannel로 read 이벤트가 발생하여 -1을 읽어온다!
+
+참고 자료: https://www.baeldung.com/java-nio-selector, https://homoefficio.github.io/2016/08/06/Java-NIO%EB%8A%94-%EC%83%9D%EA%B0%81%EB%A7%8C%ED%81%BC-non-blocking-%ED%95%98%EC%A7%80-%EC%95%8A%EB%8B%A4/,
+https://tech.kakao.com/2016/04/21/closewait-timewait/

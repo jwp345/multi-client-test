@@ -8,7 +8,6 @@ import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,10 +15,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class NIOMultiClientServerTest {
 
     private AtomicInteger numClients;
+    private AtomicInteger endCnt;
 
     @BeforeEach
     public void setUp() {
         this.numClients = new AtomicInteger(9);
+        this.endCnt = new AtomicInteger(9);
     }
 
     private Process startServer() throws IOException {
@@ -35,21 +36,22 @@ class NIOMultiClientServerTest {
 
     @Test
     public void testSocketChannelClient() throws IOException, InterruptedException {
-        Pipe pipe = Pipe.open();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         Process server = startServer();
         InputStream inputStream = server.getInputStream();
 
         Thread.sleep(1000); // 서버가 실행될 때까지 약간의 텀이 필요함. 없으면 서버가 켜지기 전에 connection 시도로 connection refused exception 발생.
+        Pipe pipe = Pipe.open();
+
 
         for (int i = 0; i < 10; i++) {
             futures.add(CompletableFuture.runAsync(() -> {
                 try {
-                    startClient(numClients.getAndDecrement(), pipe, inputStream); // 왜 DecrementAndGet()메소드는 일괄적인 값을 리턴할까..?
+                    startClient(numClients.getAndDecrement(), inputStream, pipe); // 왜 DecrementAndGet()메소드는 일괄적인 값을 리턴할까..?
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            })); // 명시적으로 끈힉 위해 1초 타임아웃 걸음.
+            }));
         }
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -57,7 +59,7 @@ class NIOMultiClientServerTest {
         server.destroy();
     }
 
-    private void startClient(int num, Pipe pipe, InputStream inputStream) throws IOException {
+    private void startClient(int num, InputStream inputStream, Pipe pipe) throws IOException {
         Selector selector = Selector.open();
         Pipe.SourceChannel sourceChannel = pipe.source();
         Pipe.SinkChannel sinkChannel = pipe.sink();
@@ -79,14 +81,15 @@ class NIOMultiClientServerTest {
 
             while (keyIterator.hasNext()) {
                 SelectionKey key = keyIterator.next();
-                if(key.isConnectable()) {
-                    key.interestOps(0); // 연결은 첫번째만 필요하므로 이후 관심 키 제거
+                System.out.println(key.channel());
+
+                if(key.isValid() && key.isConnectable()) {
                     connectSocket(socketChannel, selector, num);
                 }
-                if(key.isReadable()) {
-                    readByChannel(key, num, buffer);
+                if(key.isValid() && key.isReadable()) {
+                    readByChannel(key, num, buffer, sinkChannel);
                 }
-                if(key.isWritable()) {
+                if(key.isValid() && key.isWritable()) { // readable & writable 되는 소켓이 있는듯..?
                     writeByChannel(key, inputStream, buffer);
                 }
                 keyIterator.remove();
@@ -109,22 +112,26 @@ class NIOMultiClientServerTest {
             ByteBuffer writeBuffer = (ByteBuffer) key.attachment();
             socketChannel.write(writeBuffer);
             key.interestOps(SelectionKey.OP_READ); // 한번만 쓰고 읽기로 전환
+            writeBuffer.clear();
         }
         if(key.channel() instanceof Pipe.SinkChannel) {
             Pipe.SinkChannel sinkChannel = (Pipe.SinkChannel) key.channel();
             int bytesRead = inputStream.read(buffer.array());
-            if(bytesRead == -1) {
+            if(bytesRead <= 0) { // 원인 찾았다 얘가 계속 읽어오고 있음..
+                key.interestOps(0);
+                key.cancel();
+                System.out.println("running..");
                 return;
             }
-            buffer.position(bytesRead); // 이게 뭐지?
+            buffer.position(bytesRead); // 버퍼의 위치 설정
             buffer.flip();
             sinkChannel.write(buffer);
-            buffer.compact(); // 이건 또 머냐?
+//            buffer.compact(); // 뭐하는 건지 잘 모르겠음.
             buffer.clear();
         }
     }
 
-    private void readByChannel(SelectionKey key, int num, ByteBuffer buffer) throws IOException {
+    private void readByChannel(SelectionKey key, int num, ByteBuffer buffer, Pipe.SinkChannel sinkChannel) throws IOException {
         int bytesRead;
         if(key.channel() instanceof SocketChannel) {
             SocketChannel socketChannel = (SocketChannel) key.channel();
@@ -133,24 +140,33 @@ class NIOMultiClientServerTest {
             String response = new String(buffer.array(), 0, bytesRead);
             System.out.println("Response : " + response);
             assertEquals("Hello, NIO Client!" + num, response.trim());
-            socketChannel.close();
+            buffer.clear();
+//            socketChannel.socket().setSoLinger(true, 1);
+            socketChannel.close(); // active close
         }
         if(key.channel() instanceof Pipe.SourceChannel) {
             Pipe.SourceChannel sourceChannel = (Pipe.SourceChannel) key.channel();
             bytesRead = sourceChannel.read(buffer);
 
-            if (bytesRead == -1) {
+            if (bytesRead <= 0) {
+                key.interestOps(0);
+                key.cancel();
+                System.out.println("read running.." + bytesRead);
                 return;
             }
+            buffer.clear();
             buffer.flip();
-            byte[] bytes = new byte[bytesRead];
-            buffer.get(bytes);
-            String message = new String(bytes);
-            System.out.println(message);
-            if(message.equals("Client disconnected")) {
+            String response = new String(buffer.array(), 0, bytesRead);
+            System.out.println(response);
+            String endMsg = "Client disconnected";
+            if(response.trim().contains(endMsg)) {
+                System.out.println("reach event");
+                key.cancel();
+                sourceChannel.close();
+                sinkChannel.close();
                 key.interestOps(0);
             }
-            buffer.clear();
+//            buffer.clear();
         }
     }
 }

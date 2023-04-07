@@ -14,6 +14,7 @@ public class NIOMultiClientServer {
         Selector selector = Selector.open();
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
+        serverSocketChannel.socket().setReuseAddress(true);
         serverSocketChannel.bind(new InetSocketAddress("localhost", 1234));
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         System.out.println("Server started");
@@ -34,7 +35,7 @@ public class NIOMultiClientServer {
                     acceptConnection(key, selector);
                 }
                 if (key.isReadable()) {
-                    readMessage(key, selector);
+                    readMessage(key, selector, serverSocketChannel);
                 }
                 if (key.isWritable()) {
                     writeMessage(key, selector);
@@ -66,7 +67,7 @@ public class NIOMultiClientServer {
         System.out.println("Accepted new connection from client: " + socketChannel.getRemoteAddress());
     }
 
-    private static void readMessage(SelectionKey key, Selector selector) throws IOException {
+    private static void readMessage(SelectionKey key, Selector selector, ServerSocketChannel serverSocketChannel) throws IOException {
         // SelectionKey에서 SocketChannel 객체를 가져옴
         SocketChannel socketChannel = (SocketChannel) key.channel();
 
@@ -76,9 +77,10 @@ public class NIOMultiClientServer {
 
         // 클라이언트가 연결을 끊은 경우 or 스트림에서 더이상 읽을 값이 없을 경우(end of stream)
         if (readBytes == -1) {
-            key.interestOps(0); // 관심 키 제거
+//            key.interestOps(0); // 관심 키 제거
             System.out.println("Client disconnected");
-//            socketChannel.close();
+//            socketChannel.socket().setSoLinger(true, 0);
+            serverSocketChannel.close();
             return;
         }
 
