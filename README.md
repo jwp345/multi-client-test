@@ -9,11 +9,11 @@
 > 발견하게 된 과정 : 자식 프로세스를 생성하지 않았음에도 생성한 것처럼 부모 프로세스가 동작을 함. -> 이상하게 여겨 자식 프로세스를 따로 
 런해봤더니 사용중인 포트라고 나옴 -> 자식프로세스가 고아프로세스가 되어 혼자 돌고 있는 것 발견 
 
-#### CLOSE_WAIT과 FIN_WAIT2 상태란 무엇이고 왜 발생하는가?
-> 현재 코드에선 sever.waitFor()과 같이 서버의 실행을 종료할 때까지 기다릴 경우 발생
+#### CLOSE_WAIT과 FIN_WAIT2 상태란 무엇이고 왜 발생하는가? 그리고 TIME_WAIT 상태란?
+> 
 
 #### 왜 스레드로 테스트할땐 selector가 스레드들을 더 할당했는데 프로세스를 나누니 1개 스레드만 사용할까?
-
+> 기본적으로 단일 스레드를 기반으로 만들어진 클래스이다.
 
 #### 서버에서 응답을 바로 바로 받아볼순 없나 논블로킹 같은 기법이면 inputstream read()의 블로킹 되는 문제를 막을 수 있지 않나?
 > 1차 : 논블로킹(Readable)io인 ReadableByteChannel 클래스가 있으나 결국 channel에 읽기 작업을 하면 다른 스레드가 접근하지 못하도록 블로킹함. 
@@ -26,18 +26,15 @@
 > 클라이언트를 Selector 기반 이벤트 기반으로 변경하여 Pipe로 프로세스간 통신을 하고 각 채널 이벤트를 등록한다음, SocketChannel의 이벤트를 감지하고 처리하게끔 변경
 > 
 > 기본적으로 논블로킹이지만 read와 write의 buffersize만큼은 버퍼가 걸리는 것 같다.
+
 #### server disconnected가 정확히 요청 수(10번) 만큼 호출되고 연결을 받지 않았었는데 왜 1번만 호출 되는가?
 > Thread.sleep()으로 실행때처럼 텀을 넣어주니 해결됨. 
 >
 > 발생한 이유는 응답을 받고 서버는 클라이언트 소켓을 연결 종료시키는 시간이 필요한데, 바로 부모프로세스에서 자식프로세스를 강제 종료 시켜 
 > 출력이 종료되었거나 연결이 닫히는 걸 확인 못하고 그냥 나와버리는 듯
 
-#### 왜 decremnetAndGet()에선 의도대로 동작하지 않았는데 getAndDecrement()에선 의도대로 동작하는가?
-
-
 #### 클라이언트쪽에서 소켓 채널을 닫았는데 닫힌 채널에 write 이벤트가 발생하여 CancelledKeyException
-> Writable과 Readable이 가능한 소켓 채널이 있는 것으로 추정, else if로 read 이벤트 타면 다시 못타게 막아놨더니 해결됨. 
-> 근데 왜 write 이벤트가 소켓채널로 들어오는진 모르겠음. 
+> key.interestops(0)으로 관심사를 제거해주니 해결됐음.
 
 #### Client Disconnected를 출력하면 연결 종료를 하려했는데 왜 블로킹이 걸리는가..?
 > 이유를 모르겠음. contains메소드로 포함된 거 체크하고 닫을라해도 무용지물.. 병목지점이 생기는 건가 이유를 모르겠다..
@@ -47,6 +44,9 @@
 > 해결 시도 : 혹시나 하나의 연결만 established가 된 게 신경 쓰여 Half-close 상태에 빠진 게 문제가 되나 싶어서 서버쪽에서도
 > 소켓 채널을 닫으려고 시도함. 그러나 이번엔 하나의 소켓을 닫을 때 TIME_WAIT이 걸려 행업 상태에 빠짐. (이건 taskKill로도 종료도 안된다. 화가 난다.. 무작정 기다리거나 재부팅 해야됨.)
 > 드디어 알아낸 게 계속 sinkChannel로 read 이벤트가 발생하여 -1을 읽어온다!
+
+> 최종 결론 : nio Selector가 단일 스레드 모델로 설계되어 multi-thread 모델에 각각 open 할 시 문제가 발생하는 것 같다. 
+> 설계를 처음부터 다시 해야할 것 같다.
 
 참고 자료: https://www.baeldung.com/java-nio-selector, https://homoefficio.github.io/2016/08/06/Java-NIO%EB%8A%94-%EC%83%9D%EA%B0%81%EB%A7%8C%ED%81%BC-non-blocking-%ED%95%98%EC%A7%80-%EC%95%8A%EB%8B%A4/,
 https://tech.kakao.com/2016/04/21/closewait-timewait/
