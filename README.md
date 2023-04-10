@@ -9,11 +9,19 @@
 > 발견하게 된 과정 : 자식 프로세스를 생성하지 않았음에도 생성한 것처럼 부모 프로세스가 동작을 함. -> 이상하게 여겨 자식 프로세스를 따로 
 런해봤더니 사용중인 포트라고 나옴 -> 자식프로세스가 고아프로세스가 되어 혼자 돌고 있는 것 발견 
 
-#### CLOSE_WAIT과 FIN_WAIT2 상태란 무엇이고 왜 발생하는가?
-> 현재 코드에선 sever.waitFor()과 같이 서버의 실행을 종료할 때까지 기다릴 경우 발생
+#### CLOSE_WAIT과 FIN_WAIT2 상태란 무엇이고 왜 발생하는가? + TIME_WAIT은?
+> Active Close한 쪽이 FIN을 보내고 FIN_WAIT1상태로 대기 -> passive Close쪽이 CLOSE_WAIT으로 바꾸고 응답 ACK 전달
+> -> ACK 받은 ACTIVE CLOSE는 FIN_WAIT2상태로 변경 -> passive close쪽은 종료 프로세스 진행후 FIN을 클라이언트에 보내 LAST_ACK 상태로 바꿈
+> -> ACTIVE CLOSE쪽은 ACK를 PASSIVE CLOSE에 전송하고 TIME_WAIT으로 상태를 바꿈. TIME_WAIT에서 일정 시간이 지나면 CLOSE
+> 
+> 지금 코드의 경우엔 정상적으로 종료를 못하고 테스트 코드가 멈추질 않아 수동으로 프로세스 종료시 발생됨.
 
+> TIME_WAIT이란? 패킷의 오동작을 막기 위함.
+> 타임아웃은 60초로 설정되어 있음.
+> 자바의 경우 Socket.SoLinger()같은 메소드로 시간을 할당할 수 있음.
+> 
 #### 왜 스레드로 테스트할땐 selector가 스레드들을 더 할당했는데 프로세스를 나누니 1개 스레드만 사용할까?
-
+> 단일 스레드에서 동작하도록 설계되어 스레드에 할당될 경우 원치 않는 스레드를 추가 생성하고 동작이 이상해짐.
 
 #### 서버에서 응답을 바로 바로 받아볼순 없나 논블로킹 같은 기법이면 inputstream read()의 블로킹 되는 문제를 막을 수 있지 않나?
 > 1차 : 논블로킹(Readable)io인 ReadableByteChannel 클래스가 있으나 결국 channel에 읽기 작업을 하면 다른 스레드가 접근하지 못하도록 블로킹함. 
@@ -32,21 +40,17 @@
 > 발생한 이유는 응답을 받고 서버는 클라이언트 소켓을 연결 종료시키는 시간이 필요한데, 바로 부모프로세스에서 자식프로세스를 강제 종료 시켜 
 > 출력이 종료되었거나 연결이 닫히는 걸 확인 못하고 그냥 나와버리는 듯
 
-#### 왜 decremnetAndGet()에선 의도대로 동작하지 않았는데 getAndDecrement()에선 의도대로 동작하는가?
-
-
 #### 클라이언트쪽에서 소켓 채널을 닫았는데 닫힌 채널에 write 이벤트가 발생하여 CancelledKeyException
 > Writable과 Readable이 가능한 소켓 채널이 있는 것으로 추정, else if로 read 이벤트 타면 다시 못타게 막아놨더니 해결됨. 
 > 근데 왜 write 이벤트가 소켓채널로 들어오는진 모르겠음. 
 
-#### Client Disconnected를 출력하면 연결 종료를 하려했는데 왜 블로킹이 걸리는가..?
-> 이유를 모르겠음. contains메소드로 포함된 거 체크하고 닫을라해도 무용지물.. 병목지점이 생기는 건가 이유를 모르겠다..
-> 왜 블락되어 하나의 소켓채널은 established인 채로 종료 패킷 조차 보내지 않는가? 시간이 지나니 다 종료되고 established 된 연결 하나만 남는다.
-> 찾아보니 2*MSL 시간만큼 대기한다고 한다. (120초 정도 소요 후 종료되는 듯하다.)
+#### Client Disconnected를 출력하면 연결 종료를 하려했는데 왜 행업이 걸리는가..?
+> 왜 행업되어 연결이 진행되다 그냥 죽어버리는가? 시간이 지나니 다 종료되고 established 된 연결 하나만 남는다.
 
 > 해결 시도 : 혹시나 하나의 연결만 established가 된 게 신경 쓰여 Half-close 상태에 빠진 게 문제가 되나 싶어서 서버쪽에서도
-> 소켓 채널을 닫으려고 시도함. 그러나 이번엔 하나의 소켓을 닫을 때 TIME_WAIT이 걸려 행업 상태에 빠짐. (이건 taskKill로도 종료도 안된다. 화가 난다.. 무작정 기다리거나 재부팅 해야됨.)
 > 드디어 알아낸 게 계속 sinkChannel로 read 이벤트가 발생하여 -1을 읽어온다!
+
+> 최종 결론 : 설계부터 잘못되었다. Selector는 단일스레드를 타겟으로 설계된 모델이기 때문에 각각의 스레드 마다 독립적으로 open할 경우 원치 않는 동작이 수행되는 것이었다..
 
 참고 자료: https://www.baeldung.com/java-nio-selector, https://homoefficio.github.io/2016/08/06/Java-NIO%EB%8A%94-%EC%83%9D%EA%B0%81%EB%A7%8C%ED%81%BC-non-blocking-%ED%95%98%EC%A7%80-%EC%95%8A%EB%8B%A4/,
 https://tech.kakao.com/2016/04/21/closewait-timewait/
