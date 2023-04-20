@@ -58,5 +58,10 @@
 > 논블로킹을 활용한 방법은 없어보이고 쓰레드나 프로세스로 독립적으로 처리해야할 듯한데, 이러면 논블로킹이 의미가 없으니 각각의 스레드나 프로세스에서
 > 블로킹 메소드를 활용해서 테스트 해보는 방법이 맞는 것 같다.
 > 
-참고 자료: https://www.baeldung.com/java-nio-selector, https://homoefficio.github.io/2016/08/06/Java-NIO%EB%8A%94-%EC%83%9D%EA%B0%81%EB%A7%8C%ED%81%BC-non-blocking-%ED%95%98%EC%A7%80-%EC%95%8A%EB%8B%A4/,
-https://tech.kakao.com/2016/04/21/closewait-timewait/
+참고 자료: https://www.baeldung.com/java-nio-selector, 
+
+https://homoefficio.github.io/2016/08/06/Java-NIO%EB%8A%94-%EC%83%9D%EA%B0%81%EB%A7%8C%ED%81%BC-non-blocking-%ED%95%98%EC%A7%80-%EC%95%8A%EB%8B%A4/,
+
+https://tech.kakao.com/2016/04/21/closewait-timewait/,
+
+https://linux.systemv.pe.kr/%eb%b2%88%ec%97%ad-%eb%b0%94%ec%81%9c-%eb%a6%ac%eb%88%85%ec%8a%a4-%ec%84%9c%eb%b2%84%ec%97%90%ec%84%9c-tcp-time-wait-%ec%83%81%ed%83%9c-%eb%8c%80%ec%b2%98%ed%95%98%ea%b8%b0/
